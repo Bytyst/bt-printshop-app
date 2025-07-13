@@ -589,7 +589,12 @@ export default function InvoicesList({
                     value={newInvoice.quantity}
                     onChange={(e) => setNewInvoice({...newInvoice, quantity: parseInt(e.target.value) || 1})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
-                   onFocus={(e) => e.target.select()}
+                   onFocus={(e) => {
+                     e.target.select();
+                   }}
+                   onClick={(e) => {
+                     e.target.select();
+                   }}
                   />
                 </div>
                 
@@ -605,7 +610,12 @@ export default function InvoicesList({
                     onChange={(e) => setNewInvoice({...newInvoice, unitPrice: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
                     placeholder="0.00"
-                   onFocus={(e) => e.target.select()}
+                   onFocus={(e) => {
+                     e.target.select();
+                   }}
+                   onClick={(e) => {
+                     e.target.select();
+                   }}
                   />
                 </div>
               </div>

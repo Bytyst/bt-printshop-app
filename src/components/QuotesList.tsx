@@ -531,7 +531,12 @@ export default function QuotesList({
                     value={newQuote.quantity === 0 ? '' : newQuote.quantity}
                     onChange={(e) => setNewQuote({...newQuote, quantity: parseInt(e.target.value) || 1})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
-                   onFocus={(e) => e.target.select()}
+                   onFocus={(e) => {
+                     e.target.select();
+                   }}
+                   onClick={(e) => {
+                     e.target.select();
+                   }}
                   />
                 </div>
                 
@@ -547,7 +552,12 @@ export default function QuotesList({
                     onChange={(e) => setNewQuote({...newQuote, unitPrice: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
                     placeholder="0.00"
-                   onFocus={(e) => e.target.select()}
+                   onFocus={(e) => {
+                     e.target.select();
+                   }}
+                   onClick={(e) => {
+                     e.target.select();
+                   }}
                   />
                 </div>
               </div>
@@ -587,11 +597,8 @@ export default function QuotesList({
                         value={newQuote.depositReceived}
                         onChange={(e) => setNewQuote({...newQuote, depositReceived: parseFloat(e.target.value) || 0})}
                         className="w-24 px-2 py-1 border border-secondary-charcoal rounded text-right text-sm font-bold text-secondary-charcoal"
-                       onFocus={(e) => {
-                         if (e.target.value === '0') {
-                           e.target.select();
-                         }
-                       }}
+                       onFocus={(e) => e.target.select()}
+                       onClick={(e) => e.target.select()}
                         placeholder="0.00"
                       />
                     </div>
@@ -707,6 +714,8 @@ export default function QuotesList({
                     value={invoiceFromQuote.quantity === 0 ? '' : invoiceFromQuote.quantity}
                     onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, quantity: parseInt(e.target.value) || 1})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                   onFocus={(e) => e.target.select()}
+                   onClick={(e) => e.target.select()}
                   />
                 </div>
                 
@@ -722,11 +731,8 @@ export default function QuotesList({
                     onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, unitPrice: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="0.00"
-                    onFocus={(e) => {
-                      if (e.target.value === '0') {
-                        e.target.select();
-                      }
-                    }}
+                   onFocus={(e) => e.target.select()}
+                   onClick={(e) => e.target.select()}
                   />
                 </div>
               </div>
