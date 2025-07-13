@@ -52,9 +52,9 @@ export default function InvoicesList({
     customerName: '',
     customerEmail: '',
     description: '',
-    quantity: 1,
-    unitPrice: 0,
-    depositReceived: 0
+    quantity: '',
+    unitPrice: '',
+    depositReceived: ''
   });
   
   const getStatusColor = (status: string) => {
@@ -154,32 +154,41 @@ export default function InvoicesList({
       customerName: '',
       customerEmail: '',
       description: '',
-      quantity: 1,
-      unitPrice: 0,
-      depositReceived: 0
+      quantity: '',
+      unitPrice: '',
+      depositReceived: ''
     });
   };
 
   const calculateSubtotal = () => {
-    return (newInvoice.quantity * newInvoice.unitPrice).toFixed(2);
+    const quantity = parseFloat(newInvoice.quantity) || 0;
+    const unitPrice = parseFloat(newInvoice.unitPrice) || 0;
+    return (quantity * unitPrice).toFixed(2);
   };
 
   const calculateTax = () => {
-    const subtotal = newInvoice.quantity * newInvoice.unitPrice;
+    const quantity = parseFloat(newInvoice.quantity) || 0;
+    const unitPrice = parseFloat(newInvoice.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     return (subtotal * 0.115).toFixed(2);
   };
 
   const calculateTotal = () => {
-    const subtotal = newInvoice.quantity * newInvoice.unitPrice;
+    const quantity = parseFloat(newInvoice.quantity) || 0;
+    const unitPrice = parseFloat(newInvoice.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     return (subtotal + tax).toFixed(2);
   };
 
   const calculateBalanceDue = () => {
-    const subtotal = newInvoice.quantity * newInvoice.unitPrice;
+    const quantity = parseFloat(newInvoice.quantity) || 0;
+    const unitPrice = parseFloat(newInvoice.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     const total = subtotal + tax;
-    const balanceDue = total - newInvoice.depositReceived;
+    const depositReceived = parseFloat(newInvoice.depositReceived) || 0;
+    const balanceDue = total - depositReceived;
     return Math.max(0, balanceDue).toFixed(2);
   };
 
@@ -584,17 +593,13 @@ export default function InvoicesList({
                     Quantity
                   </label>
                   <input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={newInvoice.quantity}
-                    onChange={(e) => setNewInvoice({...newInvoice, quantity: parseInt(e.target.value) || 1})}
+                    onChange={(e) => setNewInvoice({...newInvoice, quantity: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
-                   onFocus={(e) => {
-                     e.target.select();
-                   }}
-                   onClick={(e) => {
-                     e.target.select();
-                   }}
+                    placeholder="Enter quantity"
                   />
                 </div>
                 
@@ -603,19 +608,12 @@ export default function InvoicesList({
                     Unit Price
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={newInvoice.unitPrice}
-                    onChange={(e) => setNewInvoice({...newInvoice, unitPrice: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setNewInvoice({...newInvoice, unitPrice: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
-                    placeholder="0.00"
-                   onFocus={(e) => {
-                     e.target.select();
-                   }}
-                   onClick={(e) => {
-                     e.target.select();
-                   }}
+                    placeholder="Enter price per unit"
                   />
                 </div>
               </div>
@@ -649,23 +647,13 @@ export default function InvoicesList({
                     <div className="flex justify-between items-center mb-2">
                       <label className="font-medium text-secondary-charcoal">Deposit Received:</label>
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         value={newInvoice.depositReceived}
-                        onChange={(e) => setNewInvoice({...newInvoice, depositReceived: parseFloat(e.target.value) || 0})}
+                        onChange={(e) => setNewInvoice({...newInvoice, depositReceived: e.target.value})}
                         className="w-24 px-2 py-1 border border-secondary-charcoal rounded text-right text-sm font-bold text-secondary-charcoal"
-                       onFocus={(e) => {
-                         if (e.target.value === '0') {
-                           e.target.select();
-                         }
-                       }}
+                        placeholder="0"
                       />
-                       onFocus={(e) => {
-                         if (e.target.value === '0') {
-                           e.target.select();
-                         }
-                       }}
                     </div>
                   </div>
                   

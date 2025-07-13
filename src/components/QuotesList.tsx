@@ -30,17 +30,17 @@ export default function QuotesList({
     customerName: '',
     customerEmail: '',
     description: '',
-    quantity: 1,
-    unitPrice: 0,
-    depositReceived: 0
+    quantity: '',
+    unitPrice: '',
+    depositReceived: ''
   });
   const [newQuote, setNewQuote] = useState({
     customerName: '',
     customerEmail: '',
     description: '',
-    quantity: 1,
-    unitPrice: 0,
-    depositReceived: 0
+    quantity: '',
+    unitPrice: '',
+    depositReceived: ''
   });
   
   const getStatusColor = (status: string) => {
@@ -123,9 +123,9 @@ export default function QuotesList({
       customerName: '',
       customerEmail: '',
       description: '',
-      quantity: 1,
-      unitPrice: 0,
-      depositReceived: 0
+      quantity: '',
+      unitPrice: '',
+      depositReceived: ''
     });
   };
 
@@ -161,55 +161,73 @@ export default function QuotesList({
       customerName: '',
       customerEmail: '',
       description: '',
-      quantity: 1,
-      unitPrice: 0,
-      depositReceived: 0
+      quantity: '',
+      unitPrice: '',
+      depositReceived: ''
     });
   };
 
   const calculateInvoiceSubtotal = () => {
-    return (invoiceFromQuote.quantity * invoiceFromQuote.unitPrice).toFixed(2);
+    const quantity = parseFloat(invoiceFromQuote.quantity) || 0;
+    const unitPrice = parseFloat(invoiceFromQuote.unitPrice) || 0;
+    return (quantity * unitPrice).toFixed(2);
   };
 
   const calculateInvoiceTax = () => {
-    const subtotal = invoiceFromQuote.quantity * invoiceFromQuote.unitPrice;
+    const quantity = parseFloat(invoiceFromQuote.quantity) || 0;
+    const unitPrice = parseFloat(invoiceFromQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     return (subtotal * 0.115).toFixed(2);
   };
 
   const calculateInvoiceTotal = () => {
-    const subtotal = invoiceFromQuote.quantity * invoiceFromQuote.unitPrice;
+    const quantity = parseFloat(invoiceFromQuote.quantity) || 0;
+    const unitPrice = parseFloat(invoiceFromQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     return (subtotal + tax).toFixed(2);
   };
 
   const calculateInvoiceBalanceDue = () => {
-    const subtotal = invoiceFromQuote.quantity * invoiceFromQuote.unitPrice;
+    const quantity = parseFloat(invoiceFromQuote.quantity) || 0;
+    const unitPrice = parseFloat(invoiceFromQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     const total = subtotal + tax;
-    const balanceDue = total - invoiceFromQuote.depositReceived;
+    const depositReceived = parseFloat(invoiceFromQuote.depositReceived) || 0;
+    const balanceDue = total - depositReceived;
     return Math.max(0, balanceDue).toFixed(2);
   };
 
   const calculateSubtotal = () => {
-    return (newQuote.quantity * newQuote.unitPrice).toFixed(2);
+    const quantity = parseFloat(newQuote.quantity) || 0;
+    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    return (quantity * unitPrice).toFixed(2);
   };
 
   const calculateTax = () => {
-    const subtotal = newQuote.quantity * newQuote.unitPrice;
+    const quantity = parseFloat(newQuote.quantity) || 0;
+    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     return (subtotal * 0.115).toFixed(2);
   };
 
   const calculateTotal = () => {
-    const subtotal = newQuote.quantity * newQuote.unitPrice;
+    const quantity = parseFloat(newQuote.quantity) || 0;
+    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     return (subtotal + tax).toFixed(2);
   };
 
   const calculateBalanceDue = () => {
-    const subtotal = newQuote.quantity * newQuote.unitPrice;
+    const quantity = parseFloat(newQuote.quantity) || 0;
+    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     const total = subtotal + tax;
-    const balanceDue = total - newQuote.depositReceived;
+    const depositReceived = parseFloat(newQuote.depositReceived) || 0;
+    const balanceDue = total - depositReceived;
     return Math.max(0, balanceDue).toFixed(2);
   };
 
@@ -526,17 +544,13 @@ export default function QuotesList({
                     Quantity
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    value={newQuote.quantity === 0 ? '' : newQuote.quantity}
-                    onChange={(e) => setNewQuote({...newQuote, quantity: parseInt(e.target.value) || 1})}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={newQuote.quantity}
+                    onChange={(e) => setNewQuote({...newQuote, quantity: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
-                   onFocus={(e) => {
-                     e.target.select();
-                   }}
-                   onClick={(e) => {
-                     e.target.select();
-                   }}
+                    placeholder="Enter quantity"
                   />
                 </div>
                 
@@ -545,19 +559,12 @@ export default function QuotesList({
                     Unit Price
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={newQuote.unitPrice}
-                    onChange={(e) => setNewQuote({...newQuote, unitPrice: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setNewQuote({...newQuote, unitPrice: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
-                    placeholder="0.00"
-                   onFocus={(e) => {
-                     e.target.select();
-                   }}
-                   onClick={(e) => {
-                     e.target.select();
-                   }}
+                    placeholder="Enter price per unit"
                   />
                 </div>
               </div>
@@ -591,15 +598,12 @@ export default function QuotesList({
                     <div className="flex justify-between items-center mb-2">
                       <label className="font-medium text-secondary-charcoal">Deposit Expected:</label>
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         value={newQuote.depositReceived}
-                        onChange={(e) => setNewQuote({...newQuote, depositReceived: parseFloat(e.target.value) || 0})}
+                        onChange={(e) => setNewQuote({...newQuote, depositReceived: e.target.value})}
                         className="w-24 px-2 py-1 border border-secondary-charcoal rounded text-right text-sm font-bold text-secondary-charcoal"
-                       onFocus={(e) => e.target.select()}
-                       onClick={(e) => e.target.select()}
-                        placeholder="0.00"
+                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -709,13 +713,13 @@ export default function QuotesList({
                     Quantity
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    value={invoiceFromQuote.quantity === 0 ? '' : invoiceFromQuote.quantity}
-                    onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, quantity: parseInt(e.target.value) || 1})}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={invoiceFromQuote.quantity}
+                    onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, quantity: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                   onFocus={(e) => e.target.select()}
-                   onClick={(e) => e.target.select()}
+                    placeholder="Enter quantity"
                   />
                 </div>
                 
@@ -724,15 +728,12 @@ export default function QuotesList({
                     Unit Price
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={invoiceFromQuote.unitPrice}
-                    onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, unitPrice: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, unitPrice: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="0.00"
-                   onFocus={(e) => e.target.select()}
-                   onClick={(e) => e.target.select()}
+                    placeholder="Enter price per unit"
                   />
                 </div>
               </div>
@@ -766,18 +767,12 @@ export default function QuotesList({
                     <div className="flex justify-between items-center mb-2">
                       <label className="font-medium text-gray-700">Deposit Received:</label>
                       <input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         value={invoiceFromQuote.depositReceived}
-                        onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, depositReceived: parseFloat(e.target.value) || 0})}
+                        onChange={(e) => setInvoiceFromQuote({...invoiceFromQuote, depositReceived: e.target.value})}
                         className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm font-bold text-gray-800"
-                        placeholder="0.00"
-                        onFocus={(e) => {
-                          if (e.target.value === '0') {
-                            e.target.select();
-                          }
-                        }}
+                        placeholder="0"
                       />
                     </div>
                   </div>
