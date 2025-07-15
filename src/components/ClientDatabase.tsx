@@ -1,439 +1,509 @@
-import React, { useState } from 'react';
-import { Users, Search, Filter, Plus, Eye, Edit, Mail, Phone, MapPin } from 'lucide-react';
-import { mockClients, getQuotesByClientId, getInvoicesByClientId } from '../data/mockData';
-import { Client } from '../types';
+// src/components/ClientDatabase.tsx - COPY THIS ENTIRE CODE
 
-interface ClientDatabaseProps {
-  selectedClientId?: string;
-  onNavigateToQuote: (quoteId: string, clientId?: string) => void;
-  onNavigateToInvoice: (invoiceId: string, clientId?: string) => void;
-  onCreateQuote: (clientId: string) => void;
-  onClearSelection: () => void;
+import React, { useState } from 'react';
+import { 
+  Plus, Mail, Edit, Eye, User, Phone, Building, MapPin, 
+  Save, X, FileText, Search, Filter 
+} from 'lucide-react';
+
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderDate: string;
+  status: 'active' | 'inactive' | 'prospect';
+  notes: string;
 }
 
-export default function ClientDatabase({ 
-  selectedClientId, 
-  onNavigateToQuote, 
-  onNavigateToInvoice, 
-  onCreateQuote,
-  onClearSelection 
-}: ClientDatabaseProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+interface ClientDatabaseProps {
+  onNavigateToQuote?: (quoteId: string, clientId?: string) => void;
+  onNavigateToInvoice?: (invoiceId: string, clientId?: string) => void;
+  onCreateQuote?: (clientId: string) => void;
+}
+
+// Starting data - your first customer
+const initialClients: Client[] = [
+  {
+    id: 'CLI-001',
+    name: 'John Smith',
+    email: 'john@techcorp.com',
+    phone: '(555) 123-4567',
+    company: 'Tech Corp',
+    address: '123 Business Ave',
+    city: 'New York',
+    state: 'NY',
+    zipCode: '10001',
+    totalOrders: 8,
+    totalSpent: 4250,
+    lastOrderDate: '1/14/2025',
+    status: 'active',
+    notes: 'Prefers premium materials. Always pays on time.'
+  },
+];
+
+export const ClientDatabase: React.FC<ClientDatabaseProps> = ({
+  onNavigateToQuote,
+  onNavigateToInvoice,
+  onCreateQuote
+}) => {
+  // These are like variables that remember things
+  const [clients, setClients] = useState<Client[]>(initialClients);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [showClientModal, setShowClientModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All Status');
   
-  // Auto-open modal if we have a selected client
-  React.useEffect(() => {
-    if (selectedClientId) {
-      const client = mockClients.find(c => c.id === selectedClientId);
-      if (client) {
-        setSelectedClient(client);
-        setShowClientModal(true);
-      }
-    }
-  }, [selectedClientId]);
+  // For adding new customers
+  const [newClient, setNewClient] = useState<Partial<Client>>({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    notes: '',
+    status: 'prospect'
+  });
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'active': 
-        return {
-          bg: 'bg-primary-teal',
-          text: 'text-neutral-white',
-          label: 'Active'
-        };
-      case 'inactive': 
-        return {
-          bg: 'bg-neutral-gray-light',
-          text: 'text-secondary-charcoal',
-          label: 'Inactive'
-        };
-      case 'prospect': 
-        return {
-          bg: 'bg-primary-teal-accent',
-          text: 'text-secondary-charcoal',
-          label: 'Prospect'
-        };
-      default: 
-        return {
-          bg: 'bg-neutral-gray-light',
-          text: 'text-secondary-charcoal',
-          label: 'Unknown'
-        };
-    }
-  };
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [emailTemplate, setEmailTemplate] = useState('followup');
 
-  const filteredClients = mockClients.filter(client => {
-    // If we have a selected client, prioritize it
-    if (selectedClientId && client.id === selectedClientId) {
-      return true;
-    }
-    
-    // If we're showing a specific client, only show that one
-    if (selectedClientId && client.id !== selectedClientId) {
-      return false;
-    }
-    
+  // SEARCH AND FILTER LOGIC
+  const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
+    
+    const matchesStatus = statusFilter === 'All Status' || client.status === statusFilter.toLowerCase();
+    
     return matchesSearch && matchesStatus;
   });
 
-  const handleClientClick = (client: Client) => {
-    setSelectedClient(client);
-    setShowClientModal(true);
+  // FUNCTION: Add a new customer
+  const handleAddClient = () => {
+    // Check if required fields are filled
+    if (!newClient.name || !newClient.email) {
+      alert('Name and email are required');
+      return;
+    }
+
+    // Create a new customer object
+    const client: Client = {
+      id: `CLI-${Date.now()}`, // Creates a unique ID using current time
+      name: newClient.name!,
+      email: newClient.email!,
+      phone: newClient.phone || '',
+      company: newClient.company || '',
+      address: newClient.address || '',
+      city: newClient.city || '',
+      state: newClient.state || '',
+      zipCode: newClient.zipCode || '',
+      totalOrders: 0,
+      totalSpent: 0,
+      lastOrderDate: '',
+      status: newClient.status as 'active' | 'inactive' | 'prospect',
+      notes: newClient.notes || ''
+    };
+
+    // Add the new client to our list
+    setClients(prev => [...prev, client]);
+    
+    // Close the popup and clear the form
+    setShowAddModal(false);
+    setNewClient({
+      name: '', email: '', phone: '', company: '', address: '', 
+      city: '', state: '', zipCode: '', notes: '', status: 'prospect'
+    });
+
+    // Show success message
+    alert(`✅ Client ${client.name} added successfully!`);
   };
 
-  const closeModal = () => {
-    setShowClientModal(false);
-    setSelectedClient(null);
-    if (selectedClientId) {
-      onClearSelection();
+  // FUNCTION: Edit an existing customer
+  const handleEditClient = (client: Client) => {
+    setEditingClient({ ...client }); // Make a copy of the client data
+    setShowEditModal(true); // Show the edit popup
+  };
+
+  // FUNCTION: Save changes to a customer
+  const handleSaveEdit = () => {
+    if (!editingClient) return;
+
+    // Update the client in our list
+    setClients(prev => prev.map(c => c.id === editingClient.id ? editingClient : c));
+    
+    // If this client is currently selected, update that too
+    if (selectedClient?.id === editingClient.id) {
+      setSelectedClient(editingClient);
+    }
+    
+    // Close popup and clear editing data
+    setShowEditModal(false);
+    setEditingClient(null);
+    alert(`✅ Client ${editingClient.name} updated successfully!`);
+  };
+
+  // FUNCTION: Send an email to a customer
+  const handleSendEmail = (client: Client) => {
+    // Pre-written email templates
+    const templates = {
+      followup: `Hello ${client.name},\n\nI hope you're doing well. I wanted to follow up on your recent project with us.\n\nIs there anything else we can help you with?\n\nBest regards,\nBT Printshop`,
+      quote: `Hello ${client.name},\n\nWould you be interested in a new quote? We have excellent offers this month.\n\nContact us for more details.\n\nBest regards,\nBT Printshop`,
+      thanks: `Hello ${client.name},\n\nThank you for trusting BT Printshop! It has been a pleasure working with you.\n\nWe hope to see you soon for your next project.\n\nBest regards,\nThe BT Team`
+    };
+
+    // Get the email text based on selected template
+    const emailBody = templates[emailTemplate as keyof typeof templates];
+    
+    // Create a mailto link (opens default email app)
+    const mailtoLink = `mailto:${client.email}?subject=Follow-up - ${client.name} - BT Printshop&body=${encodeURIComponent(emailBody)}`;
+    
+    // Open email app
+    window.open(mailtoLink);
+    setShowEmailModal(false);
+    alert(`📧 Email prepared for ${client.name}!\nYour email app will open.`);
+  };
+
+  // FUNCTION: Create a new quote for this customer
+  const handleCreateQuote = (clientId: string) => {
+    if (onCreateQuote) {
+      onCreateQuote(clientId);
+    } else {
+      alert(`📝 Creating new quote for client.\nNavigating to quotes section...`);
     }
   };
 
-  const selectedClientData = selectedClientId ? mockClients.find(c => c.id === selectedClientId) : null;
+  // FUNCTION: View all records for a customer
+  const handleViewAllRecords = (client: Client) => {
+    alert(`📊 View all records for ${client.name}:\n\n• Total orders: ${client.totalOrders}\n• Total spent: $${client.totalSpent}\n• Last order: ${client.lastOrderDate || 'N/A'}\n• Status: ${client.status}\n\n(This will open a detailed modal)`);
+  };
+
+  // FUNCTION: Get color for status badges
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'prospect': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header with dual-tone background */}
-        <div className="bg-secondary-charcoal rounded-lg p-8 text-neutral-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Client Database</h1>
-              {selectedClientData && (
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-neutral-white opacity-90 text-lg">Viewing client:</span>
-                  <span className="bg-neutral-white text-secondary-charcoal px-3 py-1 rounded-full font-semibold">{selectedClientData.name}</span>
-                  <button onClick={onClearSelection} className="text-neutral-white opacity-75 hover:opacity-100 text-sm underline">
-                    View All Clients
-                  </button>
-                </div>
-              )}
-              <p className="text-neutral-white opacity-90 text-lg">Manage customer information and relationships</p>
-            </div>
-            <button className="bg-primary-teal text-neutral-white px-6 py-3 rounded-lg hover:bg-primary-teal-dark transition-all flex items-center space-x-2 font-semibold">
-              <Plus className="h-5 w-5" />
-              <span>Add Client</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Main Client Database */}
-        <div className="bg-neutral-white rounded-lg shadow-lg border border-primary-teal-accent">
-          <div className="p-6 border-b border-primary-teal-accent bg-primary-teal-accent">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-secondary-charcoal">Client Directory</h2>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-secondary-charcoal-light" />
-                <input
-                  type="text"
-                  placeholder="Search clients by name, email, company, or phone..."
-                  className="w-full pl-10 pr-4 py-3 border border-primary-teal rounded-lg focus:ring-2 focus:ring-primary-teal-dark focus:border-transparent bg-neutral-white text-secondary-charcoal"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-secondary-charcoal-light" />
-                <select
-                  className="border border-primary-teal rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-teal-dark focus:border-transparent bg-neutral-white text-secondary-charcoal"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="prospect">Prospect</option>
-                </select>
-              </div>
-            </div>
+    <div className="space-y-6">
+      {/* PAGE HEADER */}
+      <div className="bg-secondary-charcoal text-white p-6 rounded-lg">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold">Client Database</h1>
+            <p className="text-gray-300 mt-1">
+              Viewing client: {selectedClient ? selectedClient.name : 'All Clients'}
+            </p>
+            <p className="text-gray-400 text-sm">Manage customer information and relationships</p>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-secondary-charcoal text-neutral-white">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Client Info
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Order History
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-primary-teal-accent">
-                {filteredClients.map((client, index) => (
-                  <tr key={client.id} className={`hover:bg-primary-teal-accent transition-all cursor-pointer ${index % 2 === 0 ? 'bg-neutral-white' : 'bg-neutral-bg-light'}`} onClick={() => handleClientClick(client)}>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-lg font-bold text-secondary-charcoal">{client.name}</div>
-                        {client.company && (
-                          <div className="text-neutral-gray-medium font-semibold">{client.company}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center text-secondary-charcoal">
-                          <Mail className="h-4 w-4 mr-3 text-primary-teal" />
-                          <span className="font-medium">{client.email}</span>
-                        </div>
-                        <div className="flex items-center text-neutral-gray-medium">
-                          <Phone className="h-4 w-4 mr-3 text-primary-teal" />
-                          <span className="font-medium">{client.phone}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-start text-secondary-charcoal">
-                        <MapPin className="h-4 w-4 mr-3 text-primary-teal mt-1 flex-shrink-0" />
-                        <div>
-                          <div className="font-semibold">{client.city}, {client.state}</div>
-                          <div className="text-neutral-gray-medium">{client.zipCode}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-lg font-bold text-secondary-charcoal">{client.totalOrders} orders</div>
-                        <div className="text-lg font-bold text-primary-teal-dark">${client.totalSpent.toLocaleString()}</div>
-                        {client.lastOrderDate && (
-                          <div className="text-sm text-neutral-gray-medium">
-                            Last: {new Date(client.lastOrderDate).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-4 py-2 text-sm font-bold rounded-lg ${getStatusConfig(client.status).bg} ${getStatusConfig(client.status).text}`}>
-                        {getStatusConfig(client.status).label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          className="p-2 hover:bg-primary-teal hover:text-neutral-white rounded-lg transition-all"
-                          title="View Details"
-                          onClick={() => handleClientClick(client)}
-                        >
-                          <Eye className="h-5 w-5 text-primary-teal-dark" />
-                        </button>
-                        <button 
-                          className="p-2 hover:bg-secondary-charcoal-light hover:text-neutral-white rounded-lg transition-all"
-                          title="Send Email"
-                        >
-                          <Mail className="h-5 w-5 text-secondary-charcoal" />
-                        </button>
-                        <button 
-                          className="p-2 hover:bg-primary-teal-accent rounded-lg transition-all"
-                          title="Edit Client"
-                        >
-                          <Edit className="h-5 w-5 text-secondary-charcoal" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {filteredClients.length === 0 && (
-            <div className="p-12 text-center">
-              <Users className="h-12 w-12 text-neutral-gray-medium mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-secondary-charcoal mb-2">No clients found</h3>
-              <p className="text-neutral-gray-medium">No clients match your current search criteria.</p>
-            </div>
-          )}
+          {/* ADD CLIENT BUTTON - NOW WORKING! */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-teal text-white rounded-md hover:bg-primary-teal-dark transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Client
+          </button>
         </div>
       </div>
 
-      {/* Client Details Modal */}
-      {showClientModal && selectedClient && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={closeModal}
-        >
-          <div 
-            className="bg-neutral-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 border-b border-primary-teal-accent bg-primary-teal text-neutral-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold">{selectedClient.name}</h3>
-                  <p className="text-neutral-white opacity-90">Client Profile & Order History</p>
+      {/* CLIENT DIRECTORY */}
+      <div className="bg-primary-teal-light p-6 rounded-lg">
+        <h2 className="text-xl font-semibold text-secondary-charcoal mb-4">Client Directory</h2>
+        
+        {/* SEARCH AND FILTERS */}
+        <div className="flex gap-4 mb-4">
+          {/* Search Box */}
+          <div className="flex-1 relative">
+            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search clients by name, email, company, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+            />
+          </div>
+          
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="pl-10 pr-8 py-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal appearance-none bg-white"
+            >
+              <option>All Status</option>
+              <option>Active</option>
+              <option>Inactive</option>
+              <option>Prospect</option>
+            </select>
+          </div>
+        </div>
+
+        {/* CLIENT TABLE */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          {/* Table Header */}
+          <div className="bg-secondary-charcoal text-white px-6 py-4">
+            <div className="grid grid-cols-6 gap-4 font-medium">
+              <div>CLIENT INFO</div>
+              <div>CONTACT</div>
+              <div>LOCATION</div>
+              <div>ORDER HISTORY</div>
+              <div>STATUS</div>
+              <div>ACTIONS</div>
+            </div>
+          </div>
+
+          {/* Table Body - List of Clients */}
+          <div className="divide-y divide-gray-200">
+            {filteredClients.map((client) => (
+              <div key={client.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div className="grid grid-cols-6 gap-4 items-center">
+                  {/* CLIENT INFO */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{client.name}</h3>
+                    <p className="text-sm text-gray-500">{client.company}</p>
+                  </div>
+
+                  {/* CONTACT */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <span className="text-primary-teal">{client.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <span>{client.phone}</span>
+                    </div>
+                  </div>
+
+                  {/* LOCATION */}
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span>{client.city}, {client.state}</span>
+                  </div>
+
+                  {/* ORDER HISTORY */}
+                  <div>
+                    <div className="text-sm font-medium">{client.totalOrders} orders</div>
+                    <div className="text-lg font-bold text-primary-teal">${client.totalSpent.toLocaleString()}</div>
+                    <div className="text-xs text-gray-500">Last: {client.lastOrderDate || 'N/A'}</div>
+                  </div>
+
+                  {/* STATUS */}
+                  <div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
+                      {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+                    </span>
+                  </div>
+
+                  {/* ACTIONS - NOW WORKING! */}
+                  <div className="flex gap-2">
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => setSelectedClient(client)}
+                      className="p-2 text-gray-400 hover:text-primary-teal hover:bg-gray-100 rounded transition-colors"
+                      title="View Details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    
+                    {/* Email Button - NOW WORKING! */}
+                    <button
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setShowEmailModal(true);
+                      }}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Send Email"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </button>
+                    
+                    {/* Edit Button - NOW WORKING! */}
+                    <button
+                      onClick={() => handleEditClient(client)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="Edit Client"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <button 
-                  onClick={closeModal}
-                  className="p-2 hover:bg-primary-teal-dark rounded-lg transition-all duration-200"
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* No Results Message */}
+        {filteredClients.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No clients found matching your search.
+          </div>
+        )}
+      </div>
+
+      {/* CLIENT PROFILE POPUP */}
+      {selectedClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            {/* Popup Header */}
+            <div className="bg-primary-teal text-white p-6 rounded-t-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
+                  <p className="text-primary-teal-light">Client Profile & Order History</p>
+                </div>
+                <button
+                  onClick={() => setSelectedClient(null)}
+                  className="text-white hover:text-gray-200"
                 >
-                  <span className="text-2xl">×</span>
+                  <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Client Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-primary-teal-accent rounded-lg p-6 space-y-4">
-                  <div>
-                    <label className="text-sm font-bold text-secondary-charcoal opacity-80">Contact Information</label>
-                    <div className="mt-3 space-y-3">
-                      <div className="flex items-center">
-                        <Mail className="h-5 w-5 mr-3 text-primary-teal-dark" />
-                        <span className="text-secondary-charcoal font-semibold">{selectedClient.email}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Phone className="h-5 w-5 mr-3 text-primary-teal-dark" />
-                        <span className="text-secondary-charcoal font-semibold">{selectedClient.phone}</span>
-                      </div>
+
+            {/* Popup Content */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Contact Information */}
+                <div className="bg-primary-teal-light p-4 rounded-lg">
+                  <h3 className="font-semibold text-secondary-charcoal mb-3">Contact Information</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-600" />
+                      <span>{selectedClient.email}</span>
                     </div>
-                  </div>
-                  
-                  {selectedClient.company && (
-                    <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Company</label>
-                      <p className="text-xl font-bold text-secondary-charcoal">{selectedClient.company}</p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-600" />
+                      <span>{selectedClient.phone}</span>
                     </div>
-                  )}
-                  
-                  <div>
-                    <label className="text-sm font-bold text-secondary-charcoal opacity-80">Address</label>
-                    <div className="mt-2 text-secondary-charcoal font-semibold">
-                      <div>{selectedClient.address}</div>
-                      <div>{selectedClient.city}, {selectedClient.state} {selectedClient.zipCode}</div>
+                    {selectedClient.company && (
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4 text-gray-600" />
+                        <span>{selectedClient.company}</span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-gray-600 mt-1" />
+                      <div>
+                        <div>{selectedClient.address}</div>
+                        <div>{selectedClient.city}, {selectedClient.state} {selectedClient.zipCode}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                
-                <div className="bg-neutral-gray-light rounded-lg p-6 space-y-4">
+
+                {/* Statistics */}
+                <div className="bg-gray-100 p-4 rounded-lg">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Status</label>
-                      <span className={`inline-flex px-4 py-2 text-sm font-bold rounded-lg ${getStatusConfig(selectedClient.status).bg} ${getStatusConfig(selectedClient.status).text}`}>
-                        {getStatusConfig(selectedClient.status).label}
+                      <div className="text-sm text-gray-600">Status</div>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedClient.status)}`}>
+                        {selectedClient.status.charAt(0).toUpperCase() + selectedClient.status.slice(1)}
                       </span>
                     </div>
-                    
                     <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Total Orders</label>
-                      <p className="text-3xl font-bold text-secondary-charcoal">{selectedClient.totalOrders}</p>
+                      <div className="text-sm text-gray-600">Total Orders</div>
+                      <div className="text-2xl font-bold">{selectedClient.totalOrders}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Total Spent</div>
+                      <div className="text-2xl font-bold text-primary-teal">${selectedClient.totalSpent.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Avg Order Value</div>
+                      <div className="text-2xl font-bold text-primary-teal">
+                        ${selectedClient.totalOrders > 0 ? Math.round(selectedClient.totalSpent / selectedClient.totalOrders) : 0}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-sm text-gray-600">Last Order</div>
+                      <div className="font-medium">{selectedClient.lastOrderDate || 'N/A'}</div>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Total Spent</label>
-                      <p className="text-3xl font-bold text-primary-teal-dark">${selectedClient.totalSpent.toLocaleString()}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Avg Order Value</label>
-                      <p className="text-2xl font-bold text-primary-teal">
-                        ${selectedClient.totalOrders > 0 ? (selectedClient.totalSpent / selectedClient.totalOrders).toFixed(0) : '0'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {selectedClient.lastOrderDate && (
-                    <div>
-                      <label className="text-sm font-bold text-secondary-charcoal opacity-80">Last Order</label>
-                      <p className="text-lg font-bold text-secondary-charcoal">{new Date(selectedClient.lastOrderDate).toLocaleDateString()}</p>
-                    </div>
-                  )}
                 </div>
               </div>
 
               {/* Notes */}
               {selectedClient.notes && (
-                <div className="bg-neutral-bg-light rounded-lg p-6 border border-primary-teal-accent">
-                  <label className="text-lg font-bold text-secondary-charcoal">Notes</label>
-                  <p className="mt-3 text-secondary-charcoal font-medium">{selectedClient.notes}</p>
+                <div className="mb-6">
+                  <h3 className="font-semibold text-secondary-charcoal mb-2">Notes</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-700">{selectedClient.notes}</p>
+                  </div>
                 </div>
               )}
 
-              {/* Related Records */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-primary-teal-accent rounded-lg p-6">
-                  <h4 className="text-lg font-bold text-secondary-charcoal mb-4">Quotes ({getQuotesByClientId(selectedClient.id).length})</h4>
-                  <div className="space-y-2">
-                    {getQuotesByClientId(selectedClient.id).slice(0, 3).map((quote) => (
-                      <button
-                        key={quote.id}
-                        onClick={() => onNavigateToQuote(quote.id, selectedClient.id)}
-                        className="w-full text-left p-3 bg-neutral-white rounded-lg hover:bg-primary-teal hover:text-neutral-white transition-all"
-                      >
-                        <div className="font-semibold">{quote.number} - ${quote.amount}</div>
-                        <div className="text-sm opacity-75">{quote.description}</div>
-                      </button>
-                    ))}
-                    {getQuotesByClientId(selectedClient.id).length === 0 && (
-                      <p className="text-secondary-charcoal opacity-75">No quotes yet</p>
-                    )}
+              {/* Sample Records */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-primary-teal-light p-4 rounded-lg">
+                  <h3 className="font-semibold text-secondary-charcoal mb-3">Quotes (1)</h3>
+                  <div className="bg-white p-3 rounded border">
+                    <div className="font-medium">Q002 - $625</div>
+                    <div className="text-sm text-gray-600">25 Hoodies, Logo front</div>
                   </div>
                 </div>
 
-                <div className="bg-neutral-gray-light rounded-lg p-6">
-                  <h4 className="text-lg font-bold text-secondary-charcoal mb-4">Invoices ({getInvoicesByClientId(selectedClient.id).length})</h4>
-                  <div className="space-y-2">
-                    {getInvoicesByClientId(selectedClient.id).slice(0, 3).map((invoice) => (
-                      <button
-                        key={invoice.id}
-                        onClick={() => onNavigateToInvoice(invoice.id, selectedClient.id)}
-                        className="w-full text-left p-3 bg-neutral-white rounded-lg hover:bg-secondary-charcoal hover:text-neutral-white transition-all"
-                      >
-                        <div className="font-semibold">{invoice.number} - ${invoice.amount}</div>
-                        <div className="text-sm opacity-75">{invoice.status} - {invoice.description}</div>
-                      </button>
-                    ))}
-                    {getInvoicesByClientId(selectedClient.id).length === 0 && (
-                      <p className="text-secondary-charcoal opacity-75">No invoices yet</p>
-                    )}
+                <div className="bg-gray-100 p-4 rounded-lg">
+                  <h3 className="font-semibold text-secondary-charcoal mb-3">Invoices (1)</h3>
+                  <div className="bg-white p-3 rounded border">
+                    <div className="font-medium">INV001 - $696.88</div>
+                    <div className="text-sm text-gray-600">partial - 25 Hoodies, Logo front</div>
                   </div>
                 </div>
               </div>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3 pt-4 border-t border-primary-teal-accent">
-                <button className="flex-1 min-w-[120px] bg-primary-teal text-neutral-white py-3 px-4 rounded-lg hover:bg-primary-teal-dark transition-all flex items-center justify-center space-x-2 font-semibold">
-                  <Edit className="h-4 w-4" />
-                  <span>Edit Client</span>
+
+              {/* ACTION BUTTONS - NOW WORKING! */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleEditClient(selectedClient)}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary-teal text-white rounded-md hover:bg-primary-teal-dark transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Client
                 </button>
-                <button className="flex-1 min-w-[120px] bg-secondary-charcoal-light text-neutral-white py-3 px-4 rounded-lg hover:bg-secondary-charcoal-dark transition-all flex items-center justify-center space-x-2 font-semibold">
-                  <Mail className="h-4 w-4" />
-                  <span>Send Email</span>
+
+                <button
+                  onClick={() => setShowEmailModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-secondary-charcoal text-white rounded-md hover:bg-secondary-charcoal-light transition-colors"
+                >
+                  <Mail className="w-4 h-4" />
+                  Send Email
                 </button>
-                <button className="flex-1 min-w-[120px] bg-primary-teal-accent text-secondary-charcoal py-3 px-4 rounded-lg hover:bg-primary-teal hover:text-neutral-white transition-all font-semibold">
-                  <button 
-                    onClick={() => onCreateQuote(selectedClient.id)}
-                    className="w-full"
-                  >
-                    Create Quote
-                  </button>
+
+                <button
+                  onClick={() => handleCreateQuote(selectedClient.id)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Create Quote
                 </button>
-                <button className="flex-1 min-w-[120px] bg-neutral-gray-light text-secondary-charcoal py-3 px-4 rounded-lg hover:bg-secondary-charcoal-light hover:text-neutral-white transition-all font-semibold">
+
+                <button
+                  onClick={() => handleViewAllRecords(selectedClient)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  <Eye className="w-4 h-4" />
                   View All Records
                 </button>
               </div>
@@ -441,6 +511,126 @@ export default function ClientDatabase({
           </div>
         </div>
       )}
-    </>
-  );
-}
+
+      {/* ADD CLIENT POPUP */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">➕ Add New Client</h3>
+              <button onClick={() => setShowAddModal(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={newClient.name}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Email *</label>
+                <input
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="john@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={newClient.phone}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Company</label>
+                <input
+                  type="text"
+                  value={newClient.company}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, company: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="Tech Corp"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Address</label>
+                <input
+                  type="text"
+                  value={newClient.address}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="123 Main St"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">City</label>
+                <input
+                  type="text"
+                  value={newClient.city}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, city: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="San Juan"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">State</label>
+                <input
+                  type="text"
+                  value={newClient.state}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, state: e.target.value }))}
+                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="PR"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <textarea
+                  value={newClient.notes}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full p-3 border rounded-md h-20 focus:outline-none focus:ring-2 focus:ring-primary-teal"
+                  placeholder="Special preferences, notes..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-2 border rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddClient}
+                className="flex-1 bg-primary-teal text-white py-2 rounded-md hover:bg-primary-teal-dark transition-colors"
+              >
+                Add Client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT CLIENT POPUP */}
+      {showEditModal && editingClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh
