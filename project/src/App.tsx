@@ -174,7 +174,7 @@ function App() {
     }
   };
 
-  const { context, navigateToTab, navigateToClient, navigateToQuote, navigateToInvoice, createInvoiceFromQuote, createQuoteForClient } = useNavigation();
+  const { context, navigateToTab, navigateToClient, navigateToQuote, navigateToInvoice, createInvoiceFromQuote, createQuoteForClient, clearAllSelections } = useNavigation();
 
   const renderContent = () => {
     switch (context.activeTab) {
@@ -188,12 +188,21 @@ function App() {
         return (
           <div className="space-y-6">
             <QuotesList 
+             quotes={quotes}
+             customers={customers}
+             invoices={invoices}
+             selectedQuote={selectedQuote}
+             showModal={showModals.quote}
+             onUpdateQuoteStatus={updateQuoteStatus}
+             onAddQuote={addNewQuote}
+             onOpenModal={openModal}
+             onCloseModal={closeModal}
               selectedQuoteId={context.selectedQuoteId}
               selectedClientId={context.selectedClientId}
               onNavigateToClient={navigateToClient}
               onNavigateToInvoice={navigateToInvoice}
               onCreateInvoice={createInvoiceFromQuote}
-              onClearSelection={() => navigateToTab('quotes')}
+              onClearSelection={clearAllSelections}
             />
           </div>
         );
@@ -214,7 +223,7 @@ function App() {
               selectedClientId={context.selectedClientId}
               onNavigateToClient={navigateToClient}
               onNavigateToQuote={navigateToQuote}
-              onClearSelection={() => navigateToTab('invoices')}
+              onClearSelection={clearAllSelections}
             />
           </div>
         );
@@ -242,8 +251,8 @@ function App() {
               selectedClientId={context.selectedClientId}
               onNavigateToQuote={navigateToQuote}
               onNavigateToInvoice={navigateToInvoice}
-              onCreateQuote={createQuoteForClient}
-              onClearSelection={() => navigateToTab('clients')}
+              onAddQuote={addNewQuote}
+              onClearSelection={clearAllSelections}
             />
           </div>
         );

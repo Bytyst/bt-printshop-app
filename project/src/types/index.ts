@@ -24,6 +24,8 @@ export interface Quote {
   description: string;
   amount: number;
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'expired';
+  archived: boolean;
+  archivedDate?: string;
   createdDate: string;
   expiryDate: string;
   items: QuoteItem[];
@@ -48,6 +50,8 @@ export interface Invoice {
   amount: number;
   paidAmount: number;
   status: 'draft' | 'sent' | 'paid' | 'overdue' | 'partial';
+  archived: boolean;
+  archivedDate?: string;
   issueDate: string;
   dueDate: string;
   paymentDate?: string;

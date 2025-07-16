@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Search, Filter, Plus, Eye, Edit, Mail, Phone, MapPin } from 'lucide-react';
+import { FileText, Search, Filter, Plus, Eye, Edit, Mail, Phone, MapPin, Archive, RotateCcw, Calendar, ChevronDown } from 'lucide-react';
 import { mockQuotes, mockClients, getClientById, getInvoiceByQuoteId } from '../data/mockData';
 import { Quote } from '../types';
 
@@ -22,6 +22,12 @@ export default function QuotesList({
 }: QuotesListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'active' | 'archived' | 'all'>('active');
+  const [dateFilter, setDateFilter] = useState<'30days' | '90days' | 'year' | 'all'>('30days');
+  const [showAllItems, setShowAllItems] = useState(false);
+  const [quotes, setQuotes] = useState<Quote[]>(mockQuotes);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [quoteToArchive, setQuoteToArchive] = useState<Quote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -43,6 +49,74 @@ export default function QuotesList({
     depositReceived: ''
   });
   
+  // Helper function to get date filter label
+  const getDateFilterLabel = (filter: string) => {
+    switch (filter) {
+      case '30days': return 'last 30 days';
+      case '90days': return 'last 90 days';
+      case 'year': return 'this year';
+      case 'all': return 'all time';
+      default: return 'last 30 days';
+    }
+  };
+
+  // Helper function to check if quote should be hidden by date filter
+  const isQuoteHiddenByDate = (quote: Quote) => {
+    if (dateFilter === 'all') return false;
+    
+    const now = new Date();
+    const quoteDate = new Date(quote.createdDate);
+    const daysDiff = Math.floor((now.getTime() - quoteDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    switch (dateFilter) {
+      case '30days': return daysDiff > 30;
+      case '90days': return daysDiff > 90;
+      case 'year': return quoteDate.getFullYear() !== now.getFullYear();
+      default: return false;
+    }
+  };
+
+  // Helper function to check if quote should be auto-hidden (old completed items)
+  const isQuoteAutoHidden = (quote: Quote) => {
+    if (showAllItems) return false;
+    
+    const now = new Date();
+    const quoteDate = new Date(quote.createdDate);
+    const daysDiff = Math.floor((now.getTime() - quoteDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Auto-hide logic for old completed items
+    if (quote.status === 'expired' && daysDiff > 60) return true;
+    if (quote.status === 'rejected' && daysDiff > 30) return true;
+    if (quote.status === 'approved' && daysDiff > 180) return true;
+    
+    return false;
+  };
+
+  // Calculate total quotes count
+  const allQuotesCount = quotes.filter(quote => {
+    // Filter by archive status based on view mode
+    if (viewMode === 'active' && quote.archived) return false;
+    if (viewMode === 'archived' && !quote.archived) return false;
+    
+    // If we have a selected client, only show their quotes
+    if (selectedClientId && quote.clientId !== selectedClientId) return false;
+    
+    return true;
+  }).length;
+
+  // Calculate hidden quotes count
+  const hiddenQuotesCount = quotes.filter(quote => {
+    // Filter by archive status based on view mode
+    if (viewMode === 'active' && quote.archived) return false;
+    if (viewMode === 'archived' && !quote.archived) return false;
+    
+    // If we have a selected client, only show their quotes
+    if (selectedClientId && quote.clientId !== selectedClientId) return false;
+    
+    // Check if hidden by date filter or auto-hide logic
+    return isQuoteHiddenByDate(quote) || isQuoteAutoHidden(quote);
+  }).length;
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'bg-neutral-gray-light text-secondary-charcoal px-3 py-1 rounded-full text-sm font-medium';
@@ -54,7 +128,11 @@ export default function QuotesList({
     }
   };
 
-  const filteredQuotes = mockQuotes.filter(quote => {
+  const filteredQuotes = quotes.filter(quote => {
+    // Filter by archive status based on view mode
+    if (viewMode === 'active' && quote.archived) return false;
+    if (viewMode === 'archived' && !quote.archived) return false;
+    
     // If we have a selected client, only show their quotes
     if (selectedClientId && quote.clientId !== selectedClientId) {
       return false;
@@ -65,6 +143,11 @@ export default function QuotesList({
       return true;
     }
     
+    // Apply date filter and auto-hide logic
+    if (isQuoteHiddenByDate(quote) || isQuoteAutoHidden(quote)) {
+      return false;
+    }
+    
     const matchesSearch = quote.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          quote.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          quote.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -72,6 +155,45 @@ export default function QuotesList({
     return matchesSearch && matchesStatus;
   });
 
+  const handleArchiveQuote = (quote: Quote) => {
+    // Only allow archiving of expired or rejected quotes
+    if (quote.status === 'expired' || quote.status === 'rejected') {
+      setQuoteToArchive(quote);
+      setShowArchiveConfirm(true);
+    }
+  };
+
+  const confirmArchive = () => {
+    if (quoteToArchive) {
+      setQuotes(prevQuotes => 
+        prevQuotes.map(quote => 
+          quote.id === quoteToArchive.id 
+            ? { ...quote, archived: true, archivedDate: new Date().toISOString() }
+            : quote
+        )
+      );
+      setShowArchiveConfirm(false);
+      setQuoteToArchive(null);
+    }
+  };
+
+  const handleRestoreQuote = (quote: Quote) => {
+    setQuotes(prevQuotes => 
+      prevQuotes.map(q => 
+        q.id === quote.id 
+          ? { ...q, archived: false, archivedDate: undefined }
+          : q
+      )
+    );
+  };
+
+  const cancelArchive = () => {
+    setShowArchiveConfirm(false);
+    setQuoteToArchive(null);
+  };
+
+  const activeQuotesCount = quotes.filter(q => !q.archived).length;
+  const archivedQuotesCount = quotes.filter(q => q.archived).length;
   const handleQuoteClick = (quote: Quote) => {
     setSelectedQuote(quote);
     setShowQuoteModal(true);
@@ -100,9 +222,9 @@ export default function QuotesList({
       customerName: '',
       customerEmail: '',
       description: '',
-      quantity: 1,
-      unitPrice: 0,
-      depositReceived: 0
+      quantity: '',
+      unitPrice: '',
+      depositReceived: ''
     });
     setShowCreateModal(true);
   };
@@ -200,29 +322,49 @@ export default function QuotesList({
   };
 
   const calculateSubtotal = () => {
-    const quantity = parseFloat(newQuote.quantity) || 0;
-    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const quantity = parseFloat(newQuote.quantity);
+    const unitPrice = parseFloat(newQuote.unitPrice);
+    
+    if (isNaN(quantity) || isNaN(unitPrice) || newQuote.quantity === '' || newQuote.unitPrice === '') {
+      return '';
+    }
+    
     return (quantity * unitPrice).toFixed(2);
   };
 
   const calculateTax = () => {
-    const quantity = parseFloat(newQuote.quantity) || 0;
-    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const quantity = parseFloat(newQuote.quantity);
+    const unitPrice = parseFloat(newQuote.unitPrice);
+    
+    if (isNaN(quantity) || isNaN(unitPrice) || newQuote.quantity === '' || newQuote.unitPrice === '') {
+      return '';
+    }
+    
     const subtotal = quantity * unitPrice;
     return (subtotal * 0.115).toFixed(2);
   };
 
   const calculateTotal = () => {
-    const quantity = parseFloat(newQuote.quantity) || 0;
-    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const quantity = parseFloat(newQuote.quantity);
+    const unitPrice = parseFloat(newQuote.unitPrice);
+    
+    if (isNaN(quantity) || isNaN(unitPrice) || newQuote.quantity === '' || newQuote.unitPrice === '') {
+      return '';
+    }
+    
     const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     return (subtotal + tax).toFixed(2);
   };
 
   const calculateBalanceDue = () => {
-    const quantity = parseFloat(newQuote.quantity) || 0;
-    const unitPrice = parseFloat(newQuote.unitPrice) || 0;
+    const quantity = parseFloat(newQuote.quantity);
+    const unitPrice = parseFloat(newQuote.unitPrice);
+    
+    if (isNaN(quantity) || isNaN(unitPrice) || newQuote.quantity === '' || newQuote.unitPrice === '') {
+      return '';
+    }
+    
     const subtotal = quantity * unitPrice;
     const tax = subtotal * 0.115;
     const total = subtotal + tax;
@@ -261,8 +403,86 @@ export default function QuotesList({
         </div>
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="flex items-center space-x-4 mb-6">
+        <div className="flex bg-neutral-gray-light rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('active')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'active' 
+                ? 'bg-primary-teal text-white' 
+                : 'text-secondary-charcoal hover:bg-primary-teal-accent'
+            }`}
+          >
+            Active ({activeQuotesCount})
+          </button>
+          <button
+            onClick={() => setViewMode('archived')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'archived' 
+                ? 'bg-secondary-charcoal text-white' 
+                : 'text-secondary-charcoal hover:bg-primary-teal-accent'
+            }`}
+          >
+            Archived ({archivedQuotesCount})
+          </button>
+          <button
+            onClick={() => setViewMode('all')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'all' 
+                ? 'bg-neutral-gray-medium text-white' 
+                : 'text-secondary-charcoal hover:bg-primary-teal-accent'
+            }`}
+          >
+            All ({quotes.length})
+          </button>
+        </div>
+      </div>
+
       {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="space-y-4 mb-6">
+        {/* Date Filter and Show All Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <select
+                className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-primary-teal focus:border-transparent bg-neutral-white"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as any)}
+              >
+                <option value="30days">Last 30 Days</option>
+                <option value="90days">Last 90 Days</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+            
+            {hiddenQuotesCount > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-500">
+                  {hiddenQuotesCount} older quotes hidden
+                </span>
+                <button
+                  onClick={() => setShowAllItems(!showAllItems)}
+                  className="text-sm text-primary-teal hover:text-primary-teal-dark font-medium flex items-center space-x-1"
+                >
+                  <span>{showAllItems ? 'Hide old items' : 'Show all'}</span>
+                  <ChevronDown className={`h-3 w-3 transition-transform ${showAllItems ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {(dateFilter !== 'all' || !showAllItems) && (
+            <div className="text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
+              Showing {getDateFilterLabel(dateFilter)} • {filteredQuotes.length} of {allQuotesCount} quotes
+            </div>
+          )}
+        </div>
+        
+        {/* Search and Status Filter */}
+        <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -290,23 +510,32 @@ export default function QuotesList({
           </select>
         </div>
       </div>
+      </div>
 
       {/* Quotes Cards */}
       <div className="space-y-4">
         {filteredQuotes.map((quote) => (
-          <div key={quote.id} className="bg-neutral-white rounded shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer border border-gray-200" onClick={() => handleQuoteClick(quote)}>
+          <div key={quote.id} className={`bg-neutral-white rounded shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer border border-gray-200 ${quote.archived ? 'opacity-75' : ''}`} onClick={() => handleQuoteClick(quote)}>
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
                   <h3 className="text-xl font-bold text-secondary-charcoal">
                     {quote.number} - {quote.customer}
                   </h3>
+                  {quote.archived && (
+                    <span className="px-2 py-1 bg-neutral-gray-light text-secondary-charcoal text-xs font-bold rounded">
+                      ARCHIVED
+                    </span>
+                  )}
                 </div>
                 <p className="text-neutral-gray-medium text-lg">{quote.description}</p>
                 <div className="mt-2 flex items-center space-x-4 text-sm text-neutral-gray-medium">
                   <span>Created: {new Date(quote.createdDate).toLocaleDateString()}</span>
                   <span>Expires: {new Date(quote.expiryDate).toLocaleDateString()}</span>
                   <span>Client ID: {quote.clientId}</span>
+                  {quote.archived && quote.archivedDate && (
+                    <span>Archived: {new Date(quote.archivedDate).toLocaleDateString()}</span>
+                  )}
                 </div>
               </div>
               
@@ -342,6 +571,25 @@ export default function QuotesList({
               >
                 View Client
               </button>
+              {!quote.archived ? (
+                (quote.status === 'expired' || quote.status === 'rejected') && (
+                  <button 
+                    onClick={() => handleArchiveQuote(quote)}
+                    className="px-4 py-2 bg-neutral-gray-medium text-white text-sm font-semibold rounded-lg hover:bg-secondary-charcoal transition-colors flex items-center space-x-1"
+                  >
+                    <Archive className="h-4 w-4" />
+                    <span>Archive</span>
+                  </button>
+                )
+              ) : (
+                <button 
+                  onClick={() => handleRestoreQuote(quote)}
+                  className="px-4 py-2 bg-primary-teal text-white text-sm font-semibold rounded-lg hover:bg-primary-teal-dark transition-colors flex items-center space-x-1"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Restore</span>
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -351,7 +599,79 @@ export default function QuotesList({
         <div className="text-center py-12">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-secondary-charcoal mb-2">No quotes found</h3>
-          <p className="text-neutral-gray-medium">No quotes match your current search criteria.</p>
+          <p className="text-neutral-gray-medium">
+            {viewMode === 'archived' 
+              ? 'No archived quotes found.' 
+              : viewMode === 'active' 
+                ? 'No active quotes found.' 
+                : 'No quotes match your current search criteria.'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {showArchiveConfirm && quoteToArchive && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={cancelArchive}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200 bg-neutral-gray-medium text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">Archive Quote</h3>
+                  <p className="text-neutral-white opacity-90">Confirm archive action</p>
+                </div>
+                <button 
+                  onClick={cancelArchive}
+                  className="p-2 hover:bg-neutral-gray-dark rounded transition-colors"
+                >
+                  <span className="text-xl">×</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex items-center space-x-3">
+                <Archive className="h-8 w-8 text-neutral-gray-medium" />
+                <div>
+                  <h4 className="text-lg font-bold text-secondary-charcoal">
+                    {quoteToArchive.number} - {quoteToArchive.customer}
+                  </h4>
+                  <p className="text-neutral-gray-medium">{quoteToArchive.description}</p>
+                </div>
+              </div>
+              
+              <div className="bg-neutral-bg-light rounded-lg p-4 border border-primary-teal-accent">
+                <p className="text-secondary-charcoal">
+                  <strong>Are you sure you want to archive this quote?</strong>
+                </p>
+                <p className="text-neutral-gray-medium text-sm mt-2">
+                  Archived quotes will be moved to the archived section but can be restored at any time.
+                </p>
+              </div>
+              
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={confirmArchive}
+                  className="flex-1 bg-neutral-gray-medium text-white py-2 px-4 rounded-lg hover:bg-secondary-charcoal transition-colors font-medium flex items-center justify-center space-x-2"
+                >
+                  <Archive className="h-4 w-4" />
+                  <span>Archive Quote</span>
+                </button>
+                <button
+                  onClick={cancelArchive}
+                  className="flex-1 bg-gray-200 text-secondary-charcoal py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -549,7 +869,7 @@ export default function QuotesList({
                     pattern="[0-9]*"
                     value={newQuote.quantity}
                     onChange={(e) => setNewQuote({...newQuote, quantity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
                     placeholder="Enter quantity"
                   />
                 </div>
@@ -563,7 +883,7 @@ export default function QuotesList({
                     inputMode="decimal"
                     value={newQuote.unitPrice}
                     onChange={(e) => setNewQuote({...newQuote, unitPrice: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent text-base"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-teal focus:border-transparent"
                     placeholder="Enter price per unit"
                   />
                 </div>
@@ -574,14 +894,14 @@ export default function QuotesList({
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-secondary-charcoal">Subtotal:</span>
                     <span className="text-lg font-bold text-secondary-charcoal">
-                      ${calculateSubtotal()}
+                      {calculateSubtotal() ? `$${calculateSubtotal()}` : ''}
                     </span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-secondary-charcoal">Tax (11.5%):</span>
                     <span className="text-lg font-bold text-secondary-charcoal">
-                      ${calculateTax()}
+                      {calculateTax() ? `$${calculateTax()}` : ''}
                     </span>
                   </div>
                   
@@ -589,7 +909,7 @@ export default function QuotesList({
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-secondary-charcoal">Quote Amount:</span>
                       <span className="text-xl font-bold text-secondary-charcoal">
-                        ${calculateTotal()}
+                        {calculateTotal() ? `$${calculateTotal()}` : ''}
                       </span>
                     </div>
                   </div>
@@ -612,7 +932,7 @@ export default function QuotesList({
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-secondary-charcoal">Balance Due:</span>
                       <span className="text-2xl font-bold text-secondary-charcoal">
-                        ${calculateBalanceDue()}
+                        {calculateBalanceDue() ? `$${calculateBalanceDue()}` : ''}
                       </span>
                     </div>
                   </div>

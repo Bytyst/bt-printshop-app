@@ -51,6 +51,12 @@ export function useNavigation() {
     });
   }, []);
 
+  const clearAllSelections = useCallback(() => {
+    setContext({
+      activeTab: 'clients'
+    });
+  }, []);
+
   return {
     context,
     navigateToClient,
@@ -58,6 +64,7 @@ export function useNavigation() {
     navigateToInvoice,
     navigateToTab,
     createInvoiceFromQuote,
-    createQuoteForClient
+    createQuoteForClient,
+    clearAllSelections
   };
 }
